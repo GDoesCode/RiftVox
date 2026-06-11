@@ -26,6 +26,7 @@ Building a third-party application for a game protected by kernel-level anti-che
 
 ## 📐 Architecture & Data Pipeline
 
+```text
 +-----------------------+      Polls X/Y/Z      +-----------------------+
 |  League Game Client   | --------------------> |     C# .NET Core      |
 |  (Local Port 2999)    |                       | (Distance Calculator) |
@@ -38,6 +39,7 @@ Building a third-party application for a game protected by kernel-level anti-che
 | Remote Teammate (App) | --------------------> |   WebView2 Container  |
 |                       |                       |  (Web Audio/WebRTC)   |
 +-----------------------+                       +-----------------------+
+```
 
 1. **The Polling Loop:** The C# background service hits the local client API every 100ms to grab player coordinates.
 2. **Distance Calculation:** The backend calculates the Euclidean distance between the user and active party members.
@@ -53,12 +55,16 @@ Building a third-party application for a game protected by kernel-level anti-che
 * Node.js (v18+ for running the signaling server locally)
 
 ### 1. Clone & Install Dependencies
-git clone https://github.com/YOUR_USERNAME/RiftVox.git
+```bash
+git clone [https://github.com/YOUR_USERNAME/RiftVox.git](https://github.com/YOUR_USERNAME/RiftVox.git)
 cd RiftVox/signaling-server
 npm install
+```
 
 ### 2. Start the Signaling Server
+```bash
 npm start
+```
 
 ### 3. Build and Run the Client
 Open `src/RiftVox.sln` in Visual Studio 2022 or Rider. Ensure the signaling server URL in your configuration matches your target host, build the solution, and launch the application alongside a live League of Legends match.
@@ -67,7 +73,7 @@ Open `src/RiftVox.sln` in Visual Studio 2022 or Rider. Ensure the signaling serv
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
