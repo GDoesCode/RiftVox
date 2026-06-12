@@ -1,4 +1,6 @@
-﻿namespace RiftVox.Core.Tests;
+﻿using RiftVox.Core.Services;
+
+namespace RiftVox.Core.Tests;
 
 public class GameConfigParserTests : IDisposable
 {

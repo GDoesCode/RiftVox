@@ -1,11 +1,12 @@
-﻿using System;
+﻿using RiftVox.Core.Models;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace RiftVox.Core;
+namespace RiftVox.Core.Services;
 
 public class RiotApiClient
 {
@@ -49,6 +50,22 @@ public class RiotApiClient
         catch (Exception)
         {
             // Catch-all for unexpected parsing drops
+            return null;
+        }
+    }
+
+    public async Task<string?> GetActivePlayerNameAsync()
+    {
+        try
+        {
+            // Pinging the local live game client port
+            string response = await _httpClient.GetStringAsync("https://127.0.0.1:2999/liveclientdata/activeplayername");
+
+            // The endpoint returns a plain JSON string wrapped in quotes (e.g., "SummonerName")
+            return response.Trim('"');
+        }
+        catch
+        {
             return null;
         }
     }

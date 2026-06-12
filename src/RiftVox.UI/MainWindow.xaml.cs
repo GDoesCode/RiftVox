@@ -1,65 +1,131 @@
-﻿using System.Windows;
-using RiftVox.Core;
+﻿using System;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using RiftVox.Core.Models;
+using RiftVox.Core.Services;
 
 namespace RiftVox.UI;
 
 public partial class MainWindow : Window
 {
     private readonly RiotApiClient _apiClient = new();
+    private readonly VisionCaptureEngine _captureEngine = new(new RiftVox.Core.Platforms.WindowsScreenCapturer());
+    private MatchMonitorService _monitorService;
+    private string? _localPlayerName;
 
     public MainWindow()
     {
         InitializeComponent();
-        // Runs on startup
-        /// <summary>Asynchronously check for an active game connection on window boot.</summary>
-        Loaded += async (s, e) => await TestLiveClientApiAsync();
+
+        // Initialize our automatic polling coordinator
+        _monitorService = new MatchMonitorService(_apiClient);
+
+        // Wire up state mutation triggers
+        _monitorService.StateChanged += MonitorService_StateChanged;
+        _monitorService.MatchStarted += async (s, e) => await HandleMatchStartAsync();
+        _monitorService.MatchEnded += HandleMatchEnd;
+
+        // Wire up our fast 200ms minimap vision ticker ticks
+        _captureEngine.PositionsUpdated += Engine_PositionsUpdated;
+
+        Loaded += (s, e) => {
+            _monitorService.StartMonitoring();
+            ConfigDisplayTextBox.Text = "🎙️ RiftVox Initialized. Standing by for client connectivity...";
+        };
+
+        Closed += (s, e) => {
+            _monitorService.StopMonitoring();
+            _captureEngine.StopCaptureLoop();
+        };
     }
 
-    /// <summary>Runs diagnostic calculations for screen positioning based on local configuration.</summary>
-    private void TestConfigParser()
+    private void MonitorService_StateChanged(object? sender, AppState newState)
+    {
+        // Thread-safe update of UI components based on client state switches
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (newState == AppState.InLobby)
+            {
+                Title = "RiftVox - Connected to Voice Lobby";
+            }
+            else if (newState == AppState.InGame)
+            {
+                Title = "RiftVox - Live Match Detected";
+            }
+        });
+    }
+
+    private async Task HandleMatchStartAsync()
     {
         var parser = new GameConfigParser();
+        string configPath = @"C:\Riot Games\League of Legends\Config\game.cfg";
 
-        // Point this to your configuration path
-        string mockPath = @"C:\Riot Games\League of Legends\Config\game.cfg";
-        parser.LoadConfig(mockPath);
+        if (File.Exists(configPath))
+        {
+            parser.LoadConfig(configPath);
+            var bounds = parser.GetMinimapBounds();
+            _captureEngine.UpdateBounds(bounds.x, bounds.y, bounds.size);
+        }
 
-        var (x, y, size) = parser.GetMinimapBounds();
+        var allPlayers = await _apiClient.GetPlayerListAsync();
+        _localPlayerName = await _apiClient.GetActivePlayerNameAsync();
 
-        string uiOutput = $"--- RIFTVOX CALIBRATION METRICS ---\n\n" +
-                          $"Detected Game Resolution : {parser.Width}x{parser.Height}\n" +
-                          $"Detected Minimap Scale   : {parser.MinimapScale}\n" +
-                          $"Minimap Side Alignment   : {(parser.MinimapOnLeft ? "LEFT" : "RIGHT")}\n\n" +
-                          $"Target Capture Window    : X={x}, Y={y} ({size}x{size}px)";
+        if (allPlayers == null || string.IsNullOrEmpty(_localPlayerName)) return;
 
-        // Send it to UI text box
-        ConfigDisplayTextBox.Text = uiOutput;
+        var localPlayerEntry = allPlayers.FirstOrDefault(p => p.SummonerName == _localPlayerName);
+        if (localPlayerEntry == null) return;
+
+        // Filter down to teammates only
+        var alliedTeamPlayers = allPlayers.Where(p => p.Team == localPlayerEntry.Team).ToList();
+
+        // Assign properties to the vision capture engine BEFORE it loops
+        _captureEngine.LocalPlayerName = _localPlayerName; // <-- Add this line!
+        _captureEngine.TrackedPlayers = alliedTeamPlayers;
+        _captureEngine.AssetsDirectoryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets");
+
+        await _captureEngine.StartCaptureLoopAsync(200);
     }
 
-    /// <summary>Pings local loopback to output the live player roster to the diagnostic log box.</summary>
-    private async Task TestLiveClientApiAsync()
+    private void HandleMatchEnd(object? sender, EventArgs e)
     {
-        ConfigDisplayTextBox.Text = "Pinging Riot Live Client API (Make sure you are in a custom/live match)...";
+        // Shut down the computer vision engine loops so the computer rests between games
+        _captureEngine.StopCaptureLoop();
 
-        var players = await _apiClient.GetPlayerListAsync();
-
-        if (players == null || players.Count == 0)
+        Dispatcher.InvokeAsync(() =>
         {
-            ConfigDisplayTextBox.Text = "🔴 FAILED: Could not connect to match data.\n\n" +
-                                        "Reasons:\n" +
-                                        "1. League of Legends game client is not running.\n" +
-                                        "2. You are in the main lobby menu, not an active live/custom match.";
-            return;
-        }
+            ConfigDisplayTextBox.Text = "🎮 Match concluded.\n\n" +
+                                        "🔊 Left Spatial Mode.\n" +
+                                        "🎙️ Channel Switched to: [Global Team Lobby Channel]";
+        });
+    }
 
-        string output = $"🟢 SUCCESS: Connected to live match!\n";
-        output += $"=====================================\n\n";
 
-        foreach (var p in players)
+    private void Engine_PositionsUpdated(object? sender, EventArgs e)
+    {
+        Dispatcher.InvokeAsync(() =>
         {
-            output += $"[{p.Team}] {p.SummonerName} -> Playing: {p.ChampionName} (Status: {(p.IsDead ? "DEAD" : "ALIVE")})\n";
-        }
+            if (_monitorService.CurrentState != AppState.InGame) return;
 
-        ConfigDisplayTextBox.Text = output;
+            var localPlayer = _captureEngine.TrackedPlayers.FirstOrDefault(p => p.SummonerName == _localPlayerName);
+            if (localPlayer == null) return;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("⚡ RIFTVOX AUTOMATED STATE MACHINE: IN-GAME SPATIAL AUDIO ENGAGED ⚡");
+            sb.AppendLine($"Local Player : {localPlayer.ChampionName} (Team: {localPlayer.Team})");
+            sb.AppendLine($"My Position  : X={localPlayer.CurrentX}px, Y={localPlayer.CurrentY}px");
+            sb.AppendLine("--------------------------------------------------------------------");
+
+            // --- ADD THIS LINE FOR REAL-TIME TROUBLESHOOTING VISIBILITY ---
+            sb.AppendLine($"\n[CORE VISION FEEDBACK]:\n{_captureEngine.DiagnosticLog}");
+            sb.AppendLine("--------------------------------------------------------------------\n");
+
+            var teammates = _captureEngine.TrackedPlayers.Where(p => p.SummonerName != _localPlayerName);
+            // ... (rest of teammate loops stay exactly the same)
+
+            ConfigDisplayTextBox.Text = sb.ToString();
+        });
     }
 }

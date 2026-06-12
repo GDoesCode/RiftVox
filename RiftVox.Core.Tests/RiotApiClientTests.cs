@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using RiftVox.Core.Models;
+using System.Net;
 
 namespace RiftVox.Core.Tests;
 

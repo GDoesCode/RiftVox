@@ -1,4 +1,4 @@
-﻿namespace RiftVox.Core;
+﻿namespace RiftVox.Core.Models;
 
 public class Player
 {
