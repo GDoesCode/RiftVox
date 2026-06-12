@@ -4,10 +4,14 @@ public class Player
 {
     public string SummonerName { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
-    public string Team { get; set; } = string.Empty; // Returns "ORDER" (Blue team) or "CHAOS" (Red team)
+        
+    /// <summary>Returns "ORDER" (Blue team) or "CHAOS" (Red team).</summary>
+    public string Team { get; set; } = string.Empty;
     public bool IsDead { get; set; }
 
-    // We will use these properties later when Option 1 (Vision) starts updating them!
+    /// <summary>Horizontal pixel tracking offset relative to the isolated minimap frame.</summary>
     public int CurrentX { get; set; } = 0;
+
+    /// <summary>Vertical pixel tracking offset relative to the isolated minimap frame.</summary>
     public int CurrentY { get; set; } = 0;
 }

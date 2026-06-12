@@ -3,4 +3,5 @@
     <Project Path="src/RiftVox.Core/RiftVox.Core.csproj" />
     <Project Path="src/RiftVox.UI/RiftVox.UI.csproj" />
   </Folder>
+  <Project Path="RiftVox.Core.Tests/RiftVox.Core.Tests.csproj" Id="a0bcaf17-6af3-4422-920d-dc0d2fb7a0d7" />
 </Solution>

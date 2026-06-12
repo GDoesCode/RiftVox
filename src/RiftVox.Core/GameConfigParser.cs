@@ -4,9 +4,12 @@ public class GameConfigParser
 {
     public int Width { get; private set; } = 1920;
     public int Height { get; private set; } = 1080;
+
     public double MinimapScale { get; private set; } = 1.0;
     public bool MinimapOnLeft { get; private set; } = false;
 
+    /// <summary>Reads game.cfg line-by-line to extract dimensions and layout scales.</summary>
+    /// <param name="filePath">The absolute file path to the League of Legends game.cfg file.</param>
     public void LoadConfig(string filePath)
     {
         if (!File.Exists(filePath)) return;
@@ -46,6 +49,11 @@ public class GameConfigParser
         }
     }
 
+    /// <summary>
+    /// Calculates the exact screen coordinates and pixel bounding box size of the in-game minimap,
+    /// dynamically adjusting for vertical monitor resolution and layout mirror flipping.
+    /// </summary>
+    /// <returns>A tuple containing the absolute X anchor, Y anchor, and the bounding box size in pixels.</returns>
     public (int x, int y, int size) GetMinimapBounds()
     {
         // Calculate responsive base size based on vertical monitor height
