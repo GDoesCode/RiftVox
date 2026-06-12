@@ -24,7 +24,6 @@ public class GameConfigParser
             string key = parts[0].Trim();
             string val = parts[1].Trim();
 
-            // Fully expanded condition tree to prevent CS0201
             if (key == "Width")
             {
                 Width = int.Parse(val);
