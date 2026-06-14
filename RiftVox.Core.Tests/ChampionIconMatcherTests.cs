@@ -28,7 +28,7 @@ public class ChampionIconMatcherTests
             similarityThreshold: 0.75);
 
         // Assert
-        Assert.Null(result);
+        Assert.Equal(result, Point.Empty);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class ChampionIconMatcherTests
             similarityThreshold: 0.75);
 
         // Assert
-        Assert.Null(result);
+        Assert.Equal(result, Point.Empty);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class ChampionIconMatcherTests
             similarityThreshold: 0.75);
 
         // Assert
-        Assert.Null(result);
+        Assert.Equal(result, Point.Empty);
     }
 
     [Fact]
@@ -132,10 +132,10 @@ public class ChampionIconMatcherTests
             similarityThreshold: 0.75);
 
         // Assert
-        Assert.NotNull(result);
+        Assert.NotEqual(result, Point.Empty);
         // Centre should be approximately at (embedX + templateWidth/2, embedY + templateHeight/2)
-        Assert.InRange(result.Value.X, embedX + templateWidth / 2 - 2, embedX + templateWidth / 2 + 2);
-        Assert.InRange(result.Value.Y, embedY + templateHeight / 2 - 2, embedY + templateHeight / 2 + 2);
+        Assert.InRange(result.X, embedX + templateWidth / 2 - 2, embedX + templateWidth / 2 + 2);
+        Assert.InRange(result.Y, embedY + templateHeight / 2 - 2, embedY + templateHeight / 2 + 2);
     }
 
     [Fact]
@@ -186,11 +186,11 @@ public class ChampionIconMatcherTests
             similarityThreshold: 0.75);
 
         // Assert - First result should be valid
-        Assert.NotNull(result1);
+        Assert.NotEqual(result1, Point.Empty);
 
         // Second result should be null (no match in modified scene)
         // but demonstrates that cache was used (it searched local region)
-        Assert.Null(result2);
+        Assert.Equal(result2, Point.Empty);
     }
 
     [Fact]

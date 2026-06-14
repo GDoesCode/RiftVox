@@ -53,9 +53,9 @@ public static class MatchingDebugHelper
             sb.AppendLine($"📸 Scene: {sceneBmp.Width}x{sceneBmp.Height}px");
             sb.AppendLine($"🎯 Template: {templateBmp.Width}x{templateBmp.Height}px");
 
-            if (result.HasValue)
+            if (result != Point.Empty)
             {
-                sb.AppendLine($"✅ MATCH FOUND at ({result.Value.X}, {result.Value.Y})");
+                sb.AppendLine($"✅ MATCH FOUND at ({result.X}, {result.Y})");
             }
             else
             {

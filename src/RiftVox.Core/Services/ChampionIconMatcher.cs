@@ -21,7 +21,7 @@ public class ChampionIconMatcher
     /// Uses temporal coherence and coarse-to-fine search to minimise CPU cost.
     /// Includes early-exit thresholds to reject non-matches aggressively.
     /// </summary>
-    public static Point? LocateIconInFrame(
+    public static Point LocateIconInFrame(
         byte[] sceneFrameBytes, 
         byte[] templateBytes, 
         int sceneWidth, 
@@ -29,9 +29,9 @@ public class ChampionIconMatcher
         string cacheKey = "default",
         double similarityThreshold = 0.75)
     {
-        if (sceneFrameBytes == null || sceneFrameBytes.Length == 0 || templateBytes == null || templateBytes.Length == 0) return null;
+        if (sceneFrameBytes == null || sceneFrameBytes.Length == 0 || templateBytes == null || templateBytes.Length == 0) return Point.Empty;
 
-        if (sceneFrameBytes.Length <= templateBytes.Length) return null;
+        if (sceneFrameBytes.Length <= templateBytes.Length) return Point.Empty;
 
         // Decode to BGRA dimensions (4 bytes per pixel)
         int templateWidth = 28;  // Fixed minimap icon size
@@ -46,7 +46,7 @@ public class ChampionIconMatcher
         int searchWidth = sceneWidth - templateWidth;
         int searchHeight = sceneHeight - templateHeight;
 
-        if (searchWidth <= 0 || searchHeight <= 0) return null;
+        if (searchWidth <= 0 || searchHeight <= 0) return Point.Empty;
 
         // Pre-compute template statistics for early rejection
         ComputeTemplateStats(templateGray, out float templateMean, out float templateStdDev);
@@ -58,7 +58,7 @@ public class ChampionIconMatcher
                 sceneGray, sceneWidth, templateGray, templateWidth, templateHeight,
                 lastPos.x, lastPos.y, SearchRadius, templateMean, templateStdDev, searchHeight);
 
-            if (refined.HasValue)
+            if (refined != Point.Empty)
                 return refined;
         }
 
@@ -95,14 +95,14 @@ public class ChampionIconMatcher
                 sceneGray, sceneWidth, templateGray, templateWidth, templateHeight,
                 bestX, bestY, 4, templateMean, templateStdDev, searchHeight);
 
-            if (refined.HasValue)
+            if (refined != Point.Empty)
             {
-                LastKnownPositions[cacheKey] = (refined.Value.X, refined.Value.Y);
+                LastKnownPositions[cacheKey] = (refined.X, refined.Y);
                 return refined;
             }
         }
 
-        return null;
+        return Point.Empty;
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ public class ChampionIconMatcher
     /// <summary>
     /// Refines search in a small neighbourhood around a candidate position.
     /// </summary>
-    private static Point? SearchLocalRegion(
+    private static Point SearchLocalRegion(
         byte[] sceneGray, int sceneWidth,
         byte[] templateGray, int templateWidth, int templateHeight,
         int centreX, int centreY, int radius, 
@@ -225,7 +225,7 @@ public class ChampionIconMatcher
             return new Point(bestX + templateWidth / 2, bestY + templateHeight / 2);
         }
 
-        return null;
+        return Point.Empty;
     }
 
     /// <summary>

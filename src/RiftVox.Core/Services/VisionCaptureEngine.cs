@@ -182,14 +182,14 @@ public class VisionCaptureEngine
                         cacheKey: player.SummonerName,
                         similarityThreshold: 0.75);  // Lower threshold prioritises performance
 
-                    bool matched = location.HasValue;
+                    bool matched = location != Point.Empty;
                     _profiler.EndPlayerMatch(player.SummonerName, matched);
 
                     if (matched)
                     {
                         matchCount++;
-                        player.CurrentX = location.Value.X;
-                        player.CurrentY = location.Value.Y;
+                        player.CurrentX = location.X;
+                        player.CurrentY = location.Y;
 
                         var localPlayer = TrackedPlayers.FirstOrDefault(p => p.SummonerName == LocalPlayerName);
                         if (localPlayer != null && player.SummonerName != LocalPlayerName)
@@ -209,8 +209,8 @@ public class VisionCaptureEngine
                             debugMatches.Add(new DebugVisualisation.MatchResult 
                             { 
                                 PlayerName = player.SummonerName, 
-                                X = location.Value.X, 
-                                Y = location.Value.Y, 
+                                X = location.X, 
+                                Y = location.Y, 
                                 Score = 0.95, // Placeholder
                                 Matched = true 
                             });
