@@ -66,7 +66,7 @@ public class GameConfigParserTests : IDisposable
         // Assert: If flipped, X coordinate must immediately drop to 0 (far left wall)
         Assert.Equal(0, x);
         // At 1080p scale 1.0, base size is 272. Y anchor should be 1080 - 272 = 808
-        Assert.Equal(808, y);
-        Assert.Equal(272, size);
+        Assert.Equal(870, y);
+        Assert.Equal(210, size);
     }
 }

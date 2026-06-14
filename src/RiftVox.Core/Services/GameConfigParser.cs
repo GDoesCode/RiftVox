@@ -57,7 +57,7 @@ public class GameConfigParser
     public (int x, int y, int size) GetMinimapBounds()
     {
         // Calculate responsive base size based on vertical monitor height
-        double baseSize = 272.0 * (Height / 1080.0);
+        double baseSize = 210.0 * (Height / 1080.0);
         int finalMapSize = (int)Math.Round(baseSize * MinimapScale);
 
         // Adjust horizontal anchor based on whether user flipped the map alignment

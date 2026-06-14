@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace RiftVox.Core.Services;
@@ -9,20 +11,26 @@ namespace RiftVox.Core.Services;
 /// <summary>
 /// Manages the automated retrieval and local disk caching of champion portrait image assets from Riot's Data Dragon servers.
 /// </summary>
-public class ChampionAssetDownloader
+/// <remarks>Initializes a new instance of the ChampionAssetDownloader class.</remarks>
+/// <param name="httpClient">The injected network communications handler client.</param>
+public class ChampionAssetDownloader(HttpClient httpClient)
 {
-    /// <summary>The shared HTTP network transaction worker instance.</summary>
-    private readonly HttpClient _httpClient;
 
     /// <summary>The memory buffer caching the active version string once fetched.</summary>
     private string? _cachedLatestVersion;
 
-    /// <summary>Initializes a new instance of the ChampionAssetDownloader class.</summary>
-    /// <param name="httpClient">The injected network communications handler client.</param>
-    public ChampionAssetDownloader(HttpClient httpClient)
+    /// <summary>
+    /// Dictionary mapping known champion display name exceptions to their exact Data Dragon ID counterparts.
+    /// </summary>
+    private static readonly Dictionary<string, string> SpecialCaseMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        _httpClient = httpClient;
-    }
+        { "Wukong", "MonkeyKing" },
+        { "Nunu & Willump", "Nunu" },
+        { "Nunu and Willump", "Nunu" },
+        { "Renata Glasc", "Renata" },
+        { "LeBlanc", "Leblanc" }, // Data Dragon uses lowercase 'b'
+        { "Bel'Veth", "Belveth" }  // Data Dragon uses lowercase 'v'
+    };
 
     /// <summary>
     /// Evaluates local asset presence and downloads missing champion portraits directly from the static content servers.
@@ -33,38 +41,67 @@ public class ChampionAssetDownloader
     /// <returns>A task tracking the state outcome of the asynchronous transmission pipelines.</returns>
     public async Task DownloadIconAsync(string championName, string targetFolder, string? patchVersion = null)
     {
+        if (string.IsNullOrWhiteSpace(targetFolder))
+        {
+            throw new ArgumentException("Target folder path cannot be null or whitespace.", nameof(targetFolder));
+        }
         if (!Directory.Exists(targetFolder))
         {
             Directory.CreateDirectory(targetFolder);
         }
 
+        string cleanName = await GetCleanChampionName(championName);
+
         /// <summary>Resolve the active game patch dynamically if none was specified.</summary>
         string activeVersion = patchVersion ?? await GetLatestVersionAsync();
 
-        /// <summary>Handle internal edge-case key mappings (e.g., Wukong is tracked as MonkeyKing).</summary>
-        string optimizedName = championName.Replace(" ", "");
-        if (optimizedName.Equals("Wukong", StringComparison.OrdinalIgnoreCase))
-        {
-            optimizedName = "MonkeyKing";
-        }
-
-        string localFileName = $"{championName}.png";
-        string targetFilePath = Path.Combine(targetFolder, localFileName);
+        string targetFilePath = $"{targetFolder}\\{cleanName}.png";
 
         /// <summary>If we already have this icon cached locally, skip the network roundtrip entirely.</summary>
         if (File.Exists(targetFilePath)) return;
 
-        string remoteUrl = $"https://ddragon.leagueoflegends.com/cdn/{activeVersion}/img/champion/{optimizedName}.png";
+        string remoteUrl = $"https://ddragon.leagueoflegends.com/cdn/{activeVersion}/img/champion/{cleanName}.png";
 
         try
         {
-            byte[] responseBytes = await _httpClient.GetByteArrayAsync(remoteUrl);
+            byte[] responseBytes = await httpClient.GetByteArrayAsync(remoteUrl);
             await File.WriteAllBytesAsync(targetFilePath, responseBytes);
         }
         catch (HttpRequestException ex)
         {
-            throw new InvalidOperationException($"Failed to acquire asset map data for champion token target: {optimizedName} on patch {activeVersion}", ex);
+            throw new InvalidOperationException($"Failed to acquire asset map data for champion token target: {cleanName} on patch {activeVersion}", ex);
         }
+    }
+
+    public static async Task<string> GetCleanChampionName(string championName)
+    {
+        string trimmedName = championName.Trim();
+
+        // 1. Check if the name is an outright exception
+        if (SpecialCaseMap.TryGetValue(trimmedName, out var exactMatch))
+        {
+            return exactMatch;
+        }
+
+        // 2. Remove punctuation: apostrophes, periods, hyphens
+        // This fixes: Cho'Gath -> ChoGath, Dr. Mundo -> Dr Mundo, Kai'Sa -> KaiSa
+        string sanitized = Regex.Replace(trimmedName, @"['\.\-]", "");
+
+        // 3. Remove all spaces
+        // This fixes: Lee Sin -> LeeSin, Master Yi -> MasterYi, Dr Mundo -> DrMundo
+        sanitized = sanitized.Replace(" ", "");
+
+        // 4. Enforce strict CamelCase if lowercase letters follow an apostrophe removal
+        // Riot's Data Dragon lowercase the letter after an apostrophe (e.g., "Chogath", not "ChoGath")
+        if (sanitized.StartsWith("ChoG")) sanitized = "Chogath";
+        if (sanitized.StartsWith("KaiS")) sanitized = "Kaisa";
+        if (sanitized.StartsWith("KhaZ")) sanitized = "Khazix";
+        if (sanitized.StartsWith("KogM")) sanitized = "KogMaw"; // KogMaw keeps capital M
+        if (sanitized.StartsWith("VelK")) sanitized = "Velkoz";
+
+        //Add Kayle different icon after lvl 11.
+
+        return sanitized;
     }
 
     /// <summary>
@@ -80,7 +117,7 @@ public class ChampionAssetDownloader
 
         try
         {
-            string jsonResponse = await _httpClient.GetStringAsync(versionUrl);
+            string jsonResponse = await httpClient.GetStringAsync(versionUrl);
             using var jsonDocument = JsonDocument.Parse(jsonResponse);
 
             /// <summary>The endpoint returns a JSON string array; index 0 is always the absolute latest patch.</summary>

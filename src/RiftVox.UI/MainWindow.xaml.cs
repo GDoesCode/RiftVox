@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -6,13 +7,14 @@ using System.Threading.Tasks;
 using System.Windows;
 using RiftVox.Core.Models;
 using RiftVox.Core.Services;
+using RiftVox.Core.Platforms;
 
 namespace RiftVox.UI;
 
 public partial class MainWindow : Window
 {
     private readonly RiotApiClient _apiClient = new();
-    private readonly VisionCaptureEngine _captureEngine = new(new RiftVox.Core.Platforms.WindowsScreenCapturer());
+    private readonly VisionCaptureEngine _captureEngine = new(new WindowsScreenCapturer());
     private MatchMonitorService _monitorService;
     private string? _localPlayerName;
 
@@ -61,13 +63,13 @@ public partial class MainWindow : Window
     private async Task HandleMatchStartAsync()
     {
         var parser = new GameConfigParser();
-        string configPath = @"C:\Riot Games\League of Legends\Config\game.cfg";
+        string configPath = LeaguePathResolver.GetGameCfgPath();
 
         if (File.Exists(configPath))
         {
             parser.LoadConfig(configPath);
-            var bounds = parser.GetMinimapBounds();
-            _captureEngine.UpdateBounds(bounds.x, bounds.y, bounds.size);
+            var (x, y, size) = parser.GetMinimapBounds();
+            _captureEngine.UpdateBounds(x, y, size);
         }
 
         var allPlayers = await _apiClient.GetPlayerListAsync();
@@ -82,7 +84,7 @@ public partial class MainWindow : Window
         var alliedTeamPlayers = allPlayers.Where(p => p.Team == localPlayerEntry.Team).ToList();
 
         // Assign properties to the vision capture engine BEFORE it loops
-        _captureEngine.LocalPlayerName = _localPlayerName; // <-- Add this line!
+        _captureEngine.LocalPlayerName = _localPlayerName;
         _captureEngine.TrackedPlayers = alliedTeamPlayers;
         _captureEngine.AssetsDirectoryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets");
 
